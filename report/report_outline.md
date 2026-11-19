@@ -1,30 +1,30 @@
-# Khung báo cáo (PDF, tối thiểu 2 trang)
+# Report outline (PDF, at least 2 pages)
 
-**Họ tên + MSSV** (bắt buộc ghi ở đầu báo cáo)
+**Full name + Student ID** (mandatory, at the top of the report)
 
 ## 1. Datasets
-- Mô tả ngắn Raisin và Abalone, nguồn, số mẫu, số feature
-- Bảng loại feature (rời rạc/liên tục, định lượng/định tính, numerical/categorical)
+- Short description of Raisin and Abalone: source, number of samples, number of features
+- Feature type table (discrete/continuous, quantitative/qualitative, numerical/categorical)
 
-## 2. Chất lượng dữ liệu và làm sạch
-- Vấn đề tìm thấy (missing, duplicate, Height = 0, outlier) và ảnh hưởng
-- Cách xử lý + bảng so sánh trước/sau
-- Data integration: cần hay không, vì sao
-- Transformation: standardization, one-hot cho Sex
+## 2. Data quality and cleaning
+- Issues found (missing values, duplicates, Height = 0, outliers) and their impact
+- How they were handled + before/after comparison table
+- Data integration: needed or not, and why
+- Transformation: standardization, one-hot encoding of Sex
 
-## 3. Label và thống kê
-- Nhãn, ý nghĩa, loại bài toán ML
-- Heatmap correlation, cặp mạnh nhất mỗi dataset, nhận xét
-- Phân tích feature categorical (chi-square, ANOVA)
+## 3. Labels and statistics
+- Label, meaning, type of ML task
+- Correlation heatmaps, strongest pair for each dataset, comments
+- Analysis of the categorical feature (chi-square, ANOVA)
 
 ## 4. PCA
-- Tiền xử lý, cách tính và chọn PC
-- Bảng/biểu đồ explained variance, so sánh PC cao và thấp
-- Ảnh hưởng của số thành phần
-- Scatter 2D PC1-PC2 theo nhãn, nhận xét cụm/chồng lấn
+- Preprocessing, how the PCs are computed and selected
+- Explained variance table/plot, comparison of high- and low-variance PCs
+- Effect of the number of components
+- 2D scatter PC1-PC2 colored by label, comments on clusters/overlaps
 
-## 5. So sánh và kết luận
-- Gốc vs PCA: giữ thông tin, diễn giải, trực quan hóa
-- Ưu và hạn chế của PCA
+## 5. Comparison and conclusion
+- Original vs PCA: information preservation, interpretability, visualization
+- Advantages and limitations of PCA
 
-Link GitHub: https://github.com/linhplb/machine-learning-labwork1-pca
+GitHub link: https://github.com/linhplb/machine-learning-labwork1-pca
