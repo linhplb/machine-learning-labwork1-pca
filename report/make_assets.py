@@ -12,6 +12,7 @@ It creates:
     data/processed/*.csv    (cleaned / encoded data)
 """
 import os
+import re
 import sys
 import warnings
 warnings.filterwarnings("ignore")
@@ -69,7 +70,8 @@ def tex_table(header, rows, align):
         if r == "MIDRULE":
             lines.append("\\midrule")
             continue
-        lines.append(" & ".join(str(c) for c in r) + " \\\\")
+        cells = [re.sub(r"(?<![\w$.\\{])-(?=\d)", "$-$", str(c)) for c in r]
+        lines.append(" & ".join(cells) + " \\\\")
     lines += ["\\bottomrule", "\\end{tabular}"]
     return "\n".join(lines) + "\n"
 
@@ -325,25 +327,16 @@ abalone_c.to_csv(os.path.join(PROC, "abalone_clean.csv"), index=False)
 pd.get_dummies(abalone_c, columns=["Sex"], dtype=int).to_csv(
     os.path.join(PROC, "abalone_encoded.csv"), index=False)
 
-# figure: boxplots before / after (z-scores from the data before cleaning), both datasets in one figure
-fig, ax = plt.subplots(2, 2, figsize=(10, 5.8))
-for i, (df_b, df_a, feats, title) in enumerate(((raisin, raisin_c, R_FEATS, "Raisin"),
-                                                (abalone, abalone_c, A_FEATS, "Abalone"))):
-    mu, sd = df_b[feats].mean(), df_b[feats].std()
-    zb = (df_b[feats] - mu) / sd
-    za = (df_a[feats] - mu) / sd
-    ax[i, 0].boxplot([zb[c] for c in feats], vert=False)
-    ax[i, 1].boxplot([za[c] for c in feats], vert=False)
-    lo = min(zb.min().min(), za.min().min()) - 0.5
-    hi = max(zb.max().max(), za.max().max()) + 0.5
-    for j in (0, 1):
-        ax[i, j].set_yticks(range(1, len(feats) + 1))
-        ax[i, j].set_yticklabels([sh(c) for c in feats] if j == 0 else [])
-        ax[i, j].set_xlim(lo, hi)
-    ax[i, 0].set_title(f"{title}: before cleaning")
-    ax[i, 1].set_title(f"{title}: after cleaning")
-for j in (0, 1):
-    ax[1, j].set_xlabel("z-score (from the data before cleaning)")
+# figure 1: boxplot of Abalone Height before and after cleaning
+height_before = pd.DataFrame({"Height": abalone["Height"], "Data": "Before cleaning"})
+height_after = pd.DataFrame({"Height": abalone_c["Height"], "Data": "After cleaning"})
+height_all = pd.concat([height_before, height_after])
+
+plt.figure(figsize=(5.5, 4.5))
+sns.boxplot(data=height_all, x="Data", y="Height", color="lightblue")
+plt.title("Abalone: Height before and after cleaning")
+plt.xlabel("")
+plt.ylabel("Height")
 save_fig("fig_box")
 
 # ------------------------------------------------------------------ statistics
@@ -376,8 +369,8 @@ for tag, df, feats in (("Raisin", raisin_c, R_FEATS), ("Abalone", abalone_c, A_F
     R[f"{tag}PairA"] = esc(best[0]); R[f"{tag}PairB"] = esc(best[1])
     R[f"{tag}PairR"] = f"{val:.3f}"
     off = corr.values[np.triu_indices(len(feats), 1)]
-    R[f"{tag}CorrMin"] = f"{off.min():.2f}"
-    R[f"{tag}CorrMax"] = f"{off.max():.2f}"
+    R[f"{tag}CorrMin"] = f"${off.min():.2f}$"
+    R[f"{tag}CorrMax"] = f"${off.max():.2f}$"
     R[f"{tag}CorrStrong"] = str(int((np.abs(off) > 0.9).sum()))
     R[f"{tag}CorrPairs"] = str(len(off))
 
@@ -406,8 +399,8 @@ n_obs = ct.values.sum()
 cramer = np.sqrt(chi2 / (n_obs * (min(ct.shape) - 1)))
 groups = [g["Rings"].values for _, g in abalone_c.groupby("Sex")]
 f_stat, p_anova = f_oneway(*groups)
-R["AbaloneChiP"] = "< 0.001" if p_chi < 0.001 else f"{p_chi:.3f}"
-R["AbaloneAnovaP"] = "< 0.001" if p_anova < 0.001 else f"{p_anova:.3f}"
+R["AbaloneChiP"] = "$<0.001$" if p_chi < 0.001 else f"$={p_chi:.3f}$"
+R["AbaloneAnovaP"] = "$<0.001$" if p_anova < 0.001 else f"$={p_anova:.3f}$"
 R["AbaloneCramer"] = f"{cramer:.3f}"
 R["AbaloneSexWord"] = "is" if p_chi < 0.05 else "is not"
 R["AbaloneCramerWord"] = ("weak" if cramer < 0.2 else "moderate" if cramer < 0.4 else "strong")
@@ -443,7 +436,7 @@ Xa, pa, Za, evr_a, cum_a, mse_a = run_pca(abalone_c, A_FEATS)
 for tag, evr, cum, pca in (("Raisin", evr_r, cum_r, pr), ("Abalone", evr_a, cum_a, pa)):
     R[f"{tag}PCOne"] = pct(evr[0])
     R[f"{tag}PCTwo"] = pct(evr[1])
-    R[f"{tag}PCLast"] = pct(evr[-1])
+    R[f"{tag}PCLast"] = pct(evr[-1], 2)
     R[f"{tag}CumTwo"] = pct(cum[1])
     R[f"{tag}CumThree"] = pct(cum[2])
     R[f"{tag}KEighty"] = str(int(np.argmax(cum >= 0.80) + 1))
@@ -455,10 +448,10 @@ for tag, evr, cum, pca in (("Raisin", evr_r, cum_r, pr), ("Abalone", evr_a, cum_
     R[f"{tag}PCOneSign"] = "the same sign" if (np.all(first > 0) or np.all(first < 0)) else "mixed signs"
 
 save_table("pca_table",
-           ["PC / k", "Raisin ratio", "Raisin kept", "Raisin MSE", "Abalone ratio", "Abalone kept", "Abalone MSE"],
-           [[f"{i+1}", pct(evr_r[i], 2), pct(cum_r[i], 2), f"{mse_r[i]:.4f}",
-             pct(evr_a[i], 2), pct(cum_a[i], 2), f"{mse_a[i]:.4f}"] for i in range(len(evr_r))],
-           "lrrrrrr")
+           ["PC / k", "Raisin ratio", "Raisin kept", "Abalone ratio", "Abalone kept"],
+           [[f"{i+1}", pct(evr_r[i], 2), pct(cum_r[i], 2), pct(evr_a[i], 2), pct(cum_a[i], 2)]
+            for i in range(len(evr_r))],
+           "lrrrr")
 
 fig, ax = plt.subplots(1, 2, figsize=(10, 3.6))
 for a, evr, cum, title in ((ax[0], evr_r, cum_r, "Raisin"), (ax[1], evr_a, cum_a, "Abalone")):
