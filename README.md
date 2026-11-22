@@ -2,7 +2,6 @@
 
 **Full name:** Phi Le Bao Linh  
 **Student ID:** 2410532  
-(If you work in a pair, add the second member.)
 
 ## Description
 Labwork 1 report (T1 - PCA): study, cleaning and transformation of two datasets from UCI, followed by Principal Component Analysis (PCA).
