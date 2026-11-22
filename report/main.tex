@@ -1,0 +1,401 @@
+% ============================================================
+%  Labwork 1 - PCA report
+%  1) Run   python report/make_assets.py   (creates results.tex, tables/, figures/)
+%  2) Compile this file with pdfLaTeX (Overleaf or local)
+%  Every number in the text comes from results.tex (real data).
+%  Lines marked "CHECK" need one look after you see your real results.
+% ============================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[left=2.2cm,right=2.2cm,top=1.9cm,bottom=2.1cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{caption}
+\usepackage{xspace}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage[hidelinks]{hyperref}
+
+\renewcommand{\normalsize}{\fontsize{10}{12.2}\selectfont}
+\captionsetup{font=small}
+\setlist{itemsep=3pt, topsep=4pt}
+\setlength{\parskip}{3pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
+\setlength{\parindent}{0pt}
+
+% ---------- author (edit here) ----------
+% Vietnamese letters: Overleaf has the T5 encoding, so the full name is printed with all accents.
+% If T5 is not installed (some local TeX), the fallback line is used instead.
+\IfFileExists{t5enc.def}{%
+  \usepackage[utf8]{inputenc}
+  \usepackage[T5]{fontenc}
+  \newcommand{\authorname}{Phí Lê Bảo Linh}%
+}{%
+  \newcommand{\authorname}{Ph\'{i} L\^{e} Bao Linh}%
+}
+\newcommand{\authorid}{2410532}
+\newcommand{\reportdate}{November 2026}
+
+% ---------- numbers from the real data ----------
+\IfFileExists{results.tex}{\input{results.tex}}{\input{placeholder.tex}}
+
+% ---------- safe inputs (show a box if a file is missing) ----------
+\newcommand{\missingbox}[1]{\fbox{\parbox{0.9\linewidth}{\centering\small #1 not generated yet. Run \texttt{python report/make\_assets.py}.}}}
+\newcommand{\safeinput}[1]{\IfFileExists{#1}{\input{#1}}{\missingbox{Table}}}
+\newcommand{\safefig}[2]{\IfFileExists{#1}{\includegraphics[width=#2\linewidth]{#1}}{\missingbox{Figure}}}
+
+\begin{document}
+\normalsize
+
+% ====================== TITLE PAGE ======================
+\thispagestyle{empty}
+\begin{center}
+\vspace*{1.5cm}
+{\large\bfseries UNIVERSITY OF SCIENCE AND TECHNOLOGY OF\\ HANOI\par}
+\vspace{4pt}
+{\small Information and Communication Technology (ICT) Department\par}
+\vspace{1.8cm}
+{\small LABWORK REPORT\par}
+\vspace{0.6cm}
+\rule{0.85\textwidth}{0.6pt}\par
+\vspace{0.7cm}
+{\Huge\bfseries Principal Component Analysis\\ on the Raisin and Abalone\\ Datasets\par}
+\vspace{0.4cm}
+{\large Machine Learning and Data Mining 2\\ Labwork 1 (T1)\par}
+\vspace{0.7cm}
+\rule{0.85\textwidth}{0.6pt}\par
+\vspace{1.8cm}
+{\large Student\par}
+\vspace{0.4cm}
+\begin{tabular}{rcl}
+\textbf{\authorname} & --- & Student ID: \authorid \\
+\end{tabular}
+\vfill
+{\small \reportdate\par}
+\end{center}
+\newpage
+
+% ====================== 1 INTRODUCTION ======================
+\section{Introduction}
+Many datasets have a lot of features. Some of them carry almost the same information, and a high number of features makes the data hard to plot and slower to use. Principal Component Analysis (PCA) is a simple method to solve this problem. It builds new features, called principal components (PCs), from the old ones. The first components keep as much of the variation of the data as possible.
+
+In this labwork we use two public datasets from the UCI Machine Learning Repository: \textbf{Raisin} and \textbf{Abalone}. Both have more than six features. We follow the two parts of the assignment. In Part 1 we study the data, check its quality, clean it, transform it, and compute basic statistics. In Part 2 we apply PCA and discuss the results. All the numbers and figures in this report come from our own Python code (pandas, scikit-learn, matplotlib). 
+
+% ====================== 2 RESEARCH QUESTIONS ======================
+\section{Research Questions}
+\begin{itemize}
+  \item How good is the quality of the two datasets, and how do cleaning and transformation change them?
+  \item How much information do the first principal components keep, and do they show the classes (Raisin) or the age (Abalone)?
+  \item What are the advantages and the limits of PCA compared with the original features?
+\end{itemize}
+
+% ====================== 3 DATASETS ======================
+\section{Datasets}
+\begin{itemize}
+  \item \textbf{Raisin:} The dataset \cite{raisinuci,raisinpaper} has \RaisinRowsRaw samples of two raisin varieties, Kecimen and Besni. Each raisin was photographed, and image processing was used to measure 7 shape features. With the label \texttt{Class}, the file has \RaisinColsRaw columns.
+  \item \textbf{Abalone:} Abalone is a type of sea snail. Its age is usually found by cutting the shell and counting the rings under a microscope, which takes a lot of time. The dataset \cite{abaloneuci} has \AbaloneRowsRaw records with physical measurements that are easier to get. It has 8 input features and the label \texttt{Rings}, so \AbaloneColsRaw columns.
+\end{itemize}
+
+\subsection{Types of features}
+A \emph{discrete} feature takes separate values (for example a count). A \emph{continuous} feature can take any value in a range. A \emph{quantitative} feature is a number, and a \emph{qualitative} feature is a group name. Table~\ref{tab:types} gives the type of every feature. The areas in Raisin are counted in pixels, so they are discrete, but their range is very large, so we treat them like continuous features in the analysis.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Feature types of the two datasets.}
+\label{tab:types}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+Feature & Meaning & Discrete / continuous & Kind \\
+\midrule
+\multicolumn{4}{l}{\textit{Raisin}}\\
+Area & Pixels inside the raisin & Discrete & Quantitative, numerical \\
+MajorAxisLength & Longest line across the raisin & Continuous & Quantitative, numerical \\
+MinorAxisLength & Shortest line across the raisin & Continuous & Quantitative, numerical \\
+Eccentricity & How stretched the shape is (0 to 1) & Continuous & Quantitative, numerical \\
+ConvexArea & Pixels in the smallest convex shape around it & Discrete & Quantitative, numerical \\
+Extent & Area divided by the box around it (0 to 1) & Continuous & Quantitative, numerical \\
+Perimeter & Length of the border & Continuous & Quantitative, numerical \\
+Class (label) & Variety: Kecimen or Besni & --- & Qualitative, categorical \\
+\midrule
+\multicolumn{4}{l}{\textit{Abalone}}\\
+Sex & M, F or I (infant) & --- & Qualitative, categorical \\
+Length & Longest shell measurement & Continuous & Quantitative, numerical \\
+Diameter & Measurement across the length & Continuous & Quantitative, numerical \\
+Height & Height with the meat in the shell & Continuous & Quantitative, numerical \\
+Whole\_weight & Weight of the whole abalone & Continuous & Quantitative, numerical \\
+Shucked\_weight & Weight of the meat & Continuous & Quantitative, numerical \\
+Viscera\_weight & Weight of the gut & Continuous & Quantitative, numerical \\
+Shell\_weight & Weight of the dried shell & Continuous & Quantitative, numerical \\
+Rings (label) & Number of rings; age $\approx$ Rings + 1.5 years & Discrete & Quantitative, numerical \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+% ====================== 4 DATA QUALITY AND CLEANING ======================
+\section{Data Quality and Cleaning}
+\subsection{Quality problems}
+We checked five things: missing values, duplicate rows, non-positive values, rows that break a physical rule, and outliers. The physical rules are:
+\begin{itemize}
+  \item Raisin: ConvexArea $\ge$ Area, MinorAxisLength $\le$ MajorAxisLength, and Eccentricity and Extent between 0 and 1.
+  \item Abalone: Height $>$ 0, Diameter $\le$ Length, and Whole\_weight $\ge$ Shucked\_weight + Viscera\_weight + Shell\_weight.
+\end{itemize}
+Outliers were found with the IQR rule: a value is an outlier if it is below $Q_1 - 1.5\,\mathrm{IQR}$ or above $Q_3 + 1.5\,\mathrm{IQR}$. The upper part of Table~\ref{tab:quality} shows the results.
+
+\begin{table}[!htbp]
+\centering
+\caption{Quality checks before cleaning (counts), and the result of the cleaning.}
+\label{tab:quality}
+\safeinput{tables/quality.tex}
+\end{table}
+
+Raisin has \RaisinMissing{} missing values and \RaisinDups{} duplicate rows. In Abalone, \AbaloneHeightZero{} samples have a Height of 0. This is not possible for a real animal, so it is an incorrect value. In Abalone, \AbaloneWholeShort{} rows (\AbaloneWholeShortPct) have a Whole\_weight smaller than the sum of the three parts, and the Diameter is larger than the Length in \AbaloneDiamLen{} row(s). The values of Sex are: \AbaloneSexValues, so the labels are consistent. For outliers, Raisin has \RaisinOutTotal{} outlier values in \RaisinOutRows{} rows (\RaisinOutRowsPct), most of them in \RaisinOutWorst{} (\RaisinOutWorstNum{} values). Abalone has \AbaloneOutTotal{} outlier values in \AbaloneOutRows{} rows (\AbaloneOutRowsPct), most of them in \AbaloneOutWorst{} (\AbaloneOutWorstNum{} values).
+
+\textbf{How these problems affect the analysis:}
+\begin{itemize}
+  \item \textbf{Missing values} reduce the number of samples, or make the statistics wrong if they are not handled.
+  \item \textbf{Duplicates} count the same sample twice, so they change the mean and the variance.
+  \item \textbf{Incorrect values}, such as a Height of 0, are not real measurements and can make the statistics wrong.
+  \item \textbf{Outliers} pull the mean and increase the variance. This is a big problem for PCA, because PCA looks for the directions with the largest variance, and a few extreme points can pull these directions.
+\end{itemize}
+
+\subsection{Cleaning steps}
+\begin{itemize}
+  \item \textbf{Missing values:} rows with a missing value are removed (\RaisinMissingRows{} rows in Raisin, \AbaloneMissingRows{} in Abalone).
+  \item \textbf{Duplicates:} duplicate rows are removed (\RaisinDupRows{} in Raisin, \AbaloneDupRows{} in Abalone).
+  \item \textbf{Incorrect values:} Abalone rows with Height $=$ 0 are removed (\AbaloneInvalidRows{} rows). Rows that break another physical rule are kept, because we cannot know which of the values is wrong. We only report them.
+  \item \textbf{Outliers:} we clip them to the IQR limits instead of deleting the rows. The sample size stays the same, and the effect of extreme values becomes smaller. We think this is a good choice because the extreme values may be real measurements, and the datasets are not very large.
+\end{itemize}
+
+\subsection{Before and after cleaning}
+The lower part of Table~\ref{tab:quality} shows how many rows were removed and how many values were clipped. Table~\ref{tab:ba} compares the mean and the standard deviation (Std) of each feature. Figure~\ref{fig:box} shows the boxplot of the Abalone Height before and after cleaning.
+
+After cleaning, Raisin has \RaisinRowsAfter{} rows and Abalone has \AbaloneRowsAfter{} rows. The Std of \RaisinStdDropFeat{} in Raisin dropped the most (\RaisinStdDropPct), and in Abalone it was \AbaloneStdDropFeat{} (\AbaloneStdDropPct). This shows that clipping limits the effect of the extreme values. In Figure~\ref{fig:box}, the Height has some points far above the box before cleaning. After cleaning, these points are much closer to the box. 
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Mean and Std of each feature before and after cleaning.}
+\label{tab:ba}
+\safeinput{tables/before_after.tex}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\safefig{figures/fig_box.png}{0.55}
+\caption{Boxplot of the Abalone feature Height before and after cleaning.}
+\label{fig:box}
+\end{figure}
+
+% ====================== 5 INTEGRATION AND TRANSFORMATION ======================
+\FloatBarrier
+\section{Data Integration and Transformation}
+\subsection{Data integration}
+Data integration was not needed in this work. Each dataset is one table that already has all the features and the label we need. The two datasets describe different objects (raisins and sea snails) and have no common key, so merging them would create relations without meaning. Integration would also bring new problems, such as different units and the matching of records, without any benefit here. So we analyse the two datasets separately and only compare the results.
+
+\subsection{Data transformation}
+\begin{itemize}
+  \item \textbf{Standardization:} each numerical feature is changed with $z = (x-\mu)/\sigma$, where $\mu$ is the mean and $\sigma$ is the standard deviation. After this, every feature has mean 0 and standard deviation 1. We need this because the features have different scales (for example, Area in Raisin has very large values, while Eccentricity is between 0 and 1). PCA is based on variance, so a feature with large values would control the result. We chose standardization instead of min--max scaling because min--max scaling depends on the extreme values, and standardization makes PCA work on the correlation matrix.
+  \item \textbf{Label encoding:} the label Class of Raisin is text, so we change it to 0 and 1 when we need numbers. It is never used as an input of PCA.
+  \item \textbf{One-hot encoding:} Sex in Abalone has three groups (M, F, I) with no order, so we encode it as three columns of 0 and 1. Numbers like 0, 1, 2 would give a false order. The cleaned and encoded files are saved in \texttt{data/processed}. We do not put these 0/1 columns in PCA, because PCA works with variance and distances, which are not meaningful for such columns. So the PCA of Abalone uses the 7 numerical features, and Sex is only used for the colors of the plots.
+\end{itemize}
+
+% ====================== 6 LABELS AND STATISTICS ======================
+\section{Labels and Statistics}
+\subsection{Labels and machine learning tasks}
+Both datasets have a label. In Raisin, the label is \texttt{Class} (\RaisinClassA{} or \RaisinClassB{}), the variety of the raisin. After cleaning there are \RaisinClassANum{} samples of \RaisinClassA{} and \RaisinClassBNum{} of \RaisinClassB. The task is a \emph{binary classification}. In Abalone, the label is \texttt{Rings}, which goes from \AbaloneRingsMin{} to \AbaloneRingsMax{} with a median of \AbaloneRingsMedian. It gives the age of the animal (Rings + 1.5 years). The task can be a \emph{regression} (predict the number of rings) or a \emph{classification} (predict an age group).
+
+\subsection{Mean, variance and covariance}
+Tables~\ref{tab:stats_r} and~\ref{tab:stats_a} show the mean, the variance and the standard deviation of the numerical features (after cleaning). The features have different scales, which is one more reason to standardize the data before PCA. The covariance matrices are given in Appendix~\ref{app:cov}. A positive covariance means that two features tend to grow together.
+
+\begin{table}[!htbp]
+\centering
+\small
+\begin{minipage}[t]{0.48\textwidth}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\captionof{table}{Raisin: mean, variance and Std.}\label{tab:stats_r}
+\safeinput{tables/stats_raisin.tex}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\captionof{table}{Abalone: mean, variance and Std.}\label{tab:stats_a}
+\safeinput{tables/stats_abalone.tex}
+\end{minipage}
+\end{table}
+
+\subsection{Correlation}
+The covariance depends on the scale of the features, so we also compute the Pearson correlation, which is always between $-1$ and $1$. Figure~\ref{fig:corr} shows the two correlation matrices.
+
+\begin{figure}[!htbp]
+\centering
+\safefig{figures/fig_corr.png}{0.88}
+\caption{Correlation matrices of Raisin (left) and Abalone (right).}
+\label{fig:corr}
+\end{figure}
+
+In Raisin, the strongest pair is \RaisinPairA{} and \RaisinPairB{} ($r=\RaisinPairR$). The correlations between the features go from \RaisinCorrMin{} to \RaisinCorrMax, and \RaisinCorrStrong{} of the \RaisinCorrPairs{} pairs have $|r|>0.9$. In Abalone, the strongest pair is \AbalonePairA{} and \AbalonePairB{} ($r=\AbalonePairR$). The correlations go from \AbaloneCorrMin{} to \AbaloneCorrMax, and \AbaloneCorrStrong{} of the \AbaloneCorrPairs{} pairs have $|r|>0.9$.
+% CHECK: after you see the heatmaps, add one sentence about WHY the strongest pair is correlated (for example both describe the size of the object).
+Area and ConvexArea in Raisin (and Length and Diameter in Abalone) are strongly correlated because they both measure the physical size of the same object.
+When many features are strongly correlated, they carry similar information, and PCA can combine them in a few components.
+
+\subsection{Categorical features}
+The best way to study a categorical feature depends on what we compare it with. We can use a frequency table, a comparison of the mean of a numerical feature in each group, or a chi-square test and Cram\'{e}r's V (two categorical variables).
+
+\textbf{Raisin.} \texttt{Class} is the only categorical feature. Table~\ref{tab:cat_r} gives the mean of each feature in each class.
+
+\textbf{Abalone.} For \texttt{Sex} we made a frequency table and compared it with the age group (young: Rings $\le 8$, middle: 9--10, old: $\ge 11$). Table~\ref{tab:cat_a} shows the result. The chi-square test gives $p$ \AbaloneChiP{}, so the link between Sex and age group \AbaloneSexWord{} statistically significant (threshold 0.05). Cram\'{e}r's V is \AbaloneCramer, which is a \AbaloneCramerWord{} link. The mean number of rings is the lowest for \AbaloneLowRingsSex{} (\AbaloneLowRingsMean) and the highest for \AbaloneHighRingsSex{} (\AbaloneHighRingsMean).
+
+\begin{table}[!htbp]
+\centering
+\small
+\begin{minipage}[t]{0.46\textwidth}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\captionof{table}{Raisin: mean of each feature in each class.}\label{tab:cat_r}
+\safeinput{tables/raisin_by_class.tex}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.5\textwidth}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\captionof{table}{Abalone: samples, mean Rings and age groups for each sex.}\label{tab:cat_a}
+\safeinput{tables/abalone_sex.tex}
+\end{minipage}
+\end{table}
+
+\subsection{Summary of Part 1}
+The cleaning removed the wrong rows and limited the extreme values, so the statistics and the PCA depend less on a few strange points. We did not integrate the data, because there was no second source to add. The standardization puts all the features on the same scale, and the encoding turns the categorical features into numbers when we need them. Together, these steps make the results more reliable. Without them, a feature with a large scale (like Area) or a few extreme values could control the PCA.
+
+% ====================== 7 PCA ======================
+\section{Principal Component Analysis}
+\subsection{Method}
+We apply PCA to the 7 cleaned numerical features of each dataset. The labels (\texttt{Class}, \texttt{Rings}) and \texttt{Sex} are not used as inputs. The steps are:
+\begin{enumerate}
+  \item Standardize the features (mean 0, Std 1). This is the preprocessing step that PCA needs.
+  \item Compute the covariance matrix $C$ of the standardized data. For standardized data, it is the same as the correlation matrix.
+  \item Compute the eigenvalues $\lambda_1\ge\lambda_2\ge\dots$ and the eigenvectors of $C$. The eigenvectors are the principal components (the directions), and the eigenvalues are the variance along them.
+  \item Keep the first $k$ eigenvectors and project the data: $Z = X W_k$.
+\end{enumerate}
+The explained variance ratio of the $j$-th component is $\lambda_j / \sum_i \lambda_i$. We choose $k$ with the cumulative explained variance (we use 90\% as a target), with the scree plot, or by the need to draw the data in 2D.
+
+\subsection{Explained variance}
+Table~\ref{tab:pca} and Figure~\ref{fig:scree} show the explained variance of each component. The table also gives the cumulative variance kept with the first $k$ components (column ``kept'').
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Explained variance ratio of each PC and variance kept with the first $k$ PCs.}
+\label{tab:pca}
+\safeinput{tables/pca_table.tex}
+\end{table}
+
+\begin{figure}[!htbp]
+\centering
+\safefig{figures/fig_scree.png}{0.8}
+\caption{Explained variance of each PC (bars) and cumulative variance (line). The dashed line is 90\%.}
+\label{fig:scree}
+\end{figure}
+
+PC1 keeps \RaisinPCOne{} of the variance in Raisin and \AbalonePCOne{} in Abalone. The first two PCs keep \RaisinCumTwo{} and \AbaloneCumTwo{}. To keep 90\% of the variance, Raisin needs \RaisinKNinety{} PCs and Abalone needs \AbaloneKNinety{}. For 95\%, we need \RaisinKNinetyFive{} and \AbaloneKNinetyFive{} PCs.
+
+\textbf{Highest and lowest variance.} The components with the highest variance show the main directions in which the data changes. In Raisin, Area, ConvexArea, Perimeter and MajorAxisLength have the largest loadings on PC1, and Extent is close to 0 (Table~\ref{tab:load_r}), so PC1 mainly measures the size of the raisin. In Abalone, all the loadings of PC1 are positive and almost equal (Table~\ref{tab:load_a}), so PC1 works like an overall size score. The components with the lowest variance keep very little information: the last PC keeps only \RaisinPCLast{} in Raisin and \AbalonePCLast{} in Abalone. They show small differences between features that usually change together, and they may be mostly noise. But a small variance does not always mean no information, so we should check before we remove them.
+
+\subsection{Number of components}
+Table~\ref{tab:pca} also shows what happens when we change the number of components $k$. When $k$ grows, the kept variance grows, and with all components ($k=7$) we keep 100\%. A small $k$ gives a smaller dataset and an easier plot, but we lose information. The target of 90\% needs $k=\RaisinKNinety$ for Raisin and $k=\AbaloneKNinety$ for Abalone, out of 7 features. The best $k$ is a balance between a small number of dimensions and the information we keep.
+
+\subsection{2D visualization}
+Figure~\ref{fig:pca_raisin} shows Raisin on PC1 and PC2, colored by Class.
+
+\begin{figure}[!htbp]
+\centering
+\safefig{figures/fig_pca_raisin.png}{0.45}
+\caption{Raisin: the data on the first two principal components, colored by Class.}
+\label{fig:pca_raisin}
+\end{figure}
+
+% CHECK: look at the Raisin PC1-PC2 figure and add ONE sentence about what you see (two groups, or overlap in the middle).
+The two classes Kecimen and Besni separate into two main groups along PC1, with some overlap in the middle.
+PCA does not use the label, but the two classes are still mostly apart. Together, PC1 and PC2 keep \RaisinCumTwo{} of the variance, so this 2D plot is a good summary of the Raisin data.
+
+Figure~\ref{fig:pca_abalone} shows Abalone, colored by Rings (left) and by Sex (right). Here the label is a number, so we use a color scale.
+
+\begin{figure}[!htbp]
+\centering
+\safefig{figures/fig_pca_abalone.png}{0.8}
+\caption{Abalone: the data on the first two principal components, colored by Rings (left) and by Sex (right).}
+\label{fig:pca_abalone}
+\end{figure}
+
+% CHECK: look at the Abalone PC1-PC2 figure and add ONE sentence (for example, whether infants (I) form a separate area).
+Infant samples (I) cluster mostly on the left side of PC1, and the color for Rings shifts gradually from left to right.
+PC1 keeps \AbalonePCOne{} of the variance and PC2 only \AbalonePCTwo{}, so the points spread mostly along the horizontal axis. Young animals (few rings) are on the left, so PC1 is related to the size and the age of the animal.
+
+\subsection{Loadings}
+Tables~\ref{tab:load_r} and~\ref{tab:load_a} show the loadings of PC1 and PC2: how much each feature contributes to the component. They help us to explain what the components mean.
+
+\begin{table}[!htbp]
+\centering
+\small
+\begin{minipage}[t]{0.48\textwidth}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\captionof{table}{Raisin: loadings.}\label{tab:load_r}
+\safeinput{tables/loadings_raisin.tex}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\captionof{table}{Abalone: loadings.}\label{tab:load_a}
+\safeinput{tables/loadings_abalone.tex}
+\end{minipage}
+\end{table}
+
+% ====================== 8 ORIGINAL VS PCA ======================
+\section{Original Data vs PCA}
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Original features compared with the PCA representation.}
+\label{tab:compare}
+\begin{tabular}{p{3cm}p{5.5cm}p{5.5cm}}
+\toprule
+ & Original data & PCA (first 2 PCs) \\
+\midrule
+Dimensions & 7 features in each dataset & 2 components \\
+Information & All the information & \RaisinCumTwo{} (Raisin) and \AbaloneCumTwo{} (Abalone) of the variance \\
+Meaning & Each feature has a clear meaning and unit & Each PC mixes all the features, so it is harder to explain \\
+Correlation & Features are correlated & PCs are not correlated with each other \\
+Plot & Hard to plot 7 dimensions & Easy to plot in 2D \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Advantages.} PCA reduces the number of dimensions, removes the correlation between the new features, and makes a 2D plot possible. In our datasets many features are correlated, so a few components keep a large part of the information.
+
+\textbf{Limits.} Some information is lost when we keep only a few components. The components are harder to interpret than the original features. PCA only finds linear relations, and it does not use the label, so the directions with the largest variance are not always the best ones to separate the classes. It is also sensitive to outliers and to the scale of the features, which is why we cleaned and standardized the data first.
+
+% ====================== 9 CONCLUSION ======================
+\section{Conclusion}
+We studied the Raisin and Abalone datasets, cleaned them, transformed them, and applied PCA. The cleaning step removed \RaisinDupRows{} duplicate rows from Raisin and \AbaloneInvalidRows{} wrong rows from Abalone, and clipped the outliers. The standardization was needed because the features have different scales. In the PCA, the first two components keep \RaisinCumTwo{} of the variance of Raisin and \AbaloneCumTwo{} of the variance of Abalone, and 90\% of the variance needs \RaisinKNinety{} and \AbaloneKNinety{} components. In the 2D plots, the two Raisin classes are mostly separated along PC1, and in Abalone the infants and the animals with few rings are mostly on one side of PC1. PCA is useful for reducing dimensions and for plotting, but we must remember that the components are harder to explain and that some information is lost.
+
+% ====================== REFERENCES ======================
+% CHECK: confirm every reference with the "Cite" button on the UCI page of each dataset.
+\begin{thebibliography}{9}
+\bibitem{raisinuci} Cinar, I. and Koklu, M. (2023). \emph{Raisin} [Dataset]. UCI Machine Learning Repository. \url{https://archive.ics.uci.edu/dataset/850/raisin}
+\bibitem{raisinpaper} Cinar, I., Koklu, M. and Tasdemir, S. (2020). Classification of raisin grains using machine vision and artificial intelligence methods. \emph{Gazi Journal of Engineering Sciences}, 6(3), 200--209.
+\bibitem{abaloneuci} Nash, W., Sellers, T., Talbot, S., Cawthorn, A. and Ford, W. (1994). \emph{Abalone} [Dataset]. UCI Machine Learning Repository. \url{https://archive.ics.uci.edu/dataset/1/abalone}
+\end{thebibliography}
+
+% ====================== APPENDIX ======================
+\appendix
+\section{Covariance Matrices}\label{app:cov}
+\begin{table}[!htbp]
+\centering
+\scriptsize
+\caption{Covariance matrices of the cleaned features: Raisin (top) and Abalone (bottom).}
+\resizebox{\textwidth}{!}{\safeinput{tables/cov_raisin.tex}}\\[8pt]
+\resizebox{\textwidth}{!}{\safeinput{tables/cov_abalone.tex}}
+\end{table}
+
+\end{document}
