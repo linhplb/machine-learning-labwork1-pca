@@ -327,16 +327,25 @@ abalone_c.to_csv(os.path.join(PROC, "abalone_clean.csv"), index=False)
 pd.get_dummies(abalone_c, columns=["Sex"], dtype=int).to_csv(
     os.path.join(PROC, "abalone_encoded.csv"), index=False)
 
-# figure 1: boxplot of Abalone Height before and after cleaning
-height_before = pd.DataFrame({"Height": abalone["Height"], "Data": "Before cleaning"})
-height_after = pd.DataFrame({"Height": abalone_c["Height"], "Data": "After cleaning"})
-height_all = pd.concat([height_before, height_after])
-
-plt.figure(figsize=(5.5, 4.5))
-sns.boxplot(data=height_all, x="Data", y="Height", color="lightblue")
-plt.title("Abalone: Height before and after cleaning")
-plt.xlabel("")
-plt.ylabel("Height")
+# figure: boxplots before / after (z-scores from the data before cleaning), both datasets in one figure
+fig, ax = plt.subplots(2, 2, figsize=(10, 5.8))
+for i, (df_b, df_a, feats, title) in enumerate(((raisin, raisin_c, R_FEATS, "Raisin"),
+                                                (abalone, abalone_c, A_FEATS, "Abalone"))):
+    mu, sd = df_b[feats].mean(), df_b[feats].std()
+    zb = (df_b[feats] - mu) / sd
+    za = (df_a[feats] - mu) / sd
+    ax[i, 0].boxplot([zb[c] for c in feats], vert=False)
+    ax[i, 1].boxplot([za[c] for c in feats], vert=False)
+    lo = min(zb.min().min(), za.min().min()) - 0.5
+    hi = max(zb.max().max(), za.max().max()) + 0.5
+    for j in (0, 1):
+        ax[i, j].set_yticks(range(1, len(feats) + 1))
+        ax[i, j].set_yticklabels([sh(c) for c in feats] if j == 0 else [])
+        ax[i, j].set_xlim(lo, hi)
+    ax[i, 0].set_title(f"{title}: before cleaning")
+    ax[i, 1].set_title(f"{title}: after cleaning")
+for j in (0, 1):
+    ax[1, j].set_xlabel("z-score (from the data before cleaning)")
 save_fig("fig_box")
 
 # ------------------------------------------------------------------ statistics
